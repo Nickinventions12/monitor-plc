@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor Web - Banda Clasificadora</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 20px; text-align: center; }
+        
+        /* --- ESTILOS DEL MENÚ --- */
+        .menu-container { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 30px; display: inline-block; }
+        .menu-btn { background-color: #1a73e8; color: white; border: none; padding: 10px 20px; margin: 0 10px; border-radius: 5px; font-size: 1.1em; cursor: pointer; transition: background-color 0.3s; }
+        .menu-btn:hover { background-color: #0d47a1; }
+        .menu-btn.active { background-color: #ff9800; font-weight: bold; } /* Botón activo en naranja */
+        
+        /* --- ESTILOS DE TARJETAS Y DATOS --- */
+        .contenedor { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .tarjeta { background: white; padding: 20px; width: 320px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; transition: opacity 0.3s ease; }
+        
+        /* Clase para ocultar secciones */
+        .oculto { display: none !important; }
+        
+        h1 { color: #1a73e8; margin-bottom: 20px; }
+        h2 { color: #333; font-size: 1.2em; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
+        .fila-dato { display: flex; justify-content: space-between; font-size: 1.1em; margin: 15px 0; align-items: center; }
+        .encendido { color: white; background-color: #34a853; padding: 5px 12px; border-radius: 15px; font-weight: bold; font-size: 0.9em; }
+        .apagado { color: white; background-color: #ea4335; padding: 5px 12px; border-radius: 15px; font-weight: bold; font-size: 0.9em; }
+        .contador-badge { color: white; background-color: #9c27b0; padding: 5px 12px; border-radius: 15px; font-weight: bold; font-size: 0.9em; }
+    </style>
+    <!-- Firebase SDK Modular Compat -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+
+    <h1>Monitor IoT - Banda Clasificadora</h1>
+
+    <!-- MENÚ DE NAVEGACIÓN -->
+    <div class="menu-container">
+        <button id="btn-completo" class="menu-btn active" onclick="mostrarVista('completo')">Monitoreo Completo</button>
+        <button id="btn-conteo" class="menu-btn" onclick="mostrarVista('conteo')">Solo Conteo</button>
+    </div>
+
+    <div class="contenedor">
+        <!-- Tarjeta de Entradas -->
+        <div id="tarjeta-entradas" class="tarjeta">
+            <h2>Sensores (Entradas)</h2>
+            <div class="fila-dato"><span>S1 (Presencia - I0.0)</span> <span id="v-i00" class="apagado">0</span></div>
+            <div class="fila-dato"><span>S2 (Tamaño - I0.1)</span> <span id="v-i01" class="apagado">0</span></div>
+            <div class="fila-dato"><span>S3 (Conteo - I0.2)</span> <span id="v-i02" class="apagado">0</span></div>
+        </div>
+
+        <!-- Tarjeta de Salidas -->
+        <div id="tarjeta-salidas" class="tarjeta">
+            <h2>Actuadores (Salidas)</h2>
+            <div class="fila-dato"><span>Motor Banda (Q0.0)</span> <span id="v-q00" class="apagado">0</span></div>
+            <div class="fila-dato"><span>Llenado (Q0.1)</span> <span id="v-q01" class="apagado">0</span></div>
+            <div class="fila-dato"><span>Descarte (Q0.2)</span> <span id="v-q02" class="apagado">0</span></div>
+        </div>
+
+        <!-- Tarjeta de Contadores -->
+        <div id="tarjeta-contadores" class="tarjeta">
+            <h2>Conteo (Memorias)</h2>
+            <div class="fila-dato"><span>Piezas (M0.0)</span> <span id="v-m00" class="contador-badge">0</span></div>
+            <div class="fila-dato"><span>Descartes (M0.1)</span> <span id="v-m01" class="contador-badge">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            databaseURL: "https://iot-firebase-b67ad-default-rtdb.firebaseio.com/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Función para cambiar de vista según el botón presionado
+        function mostrarVista(vista) {
+            const tEntradas = document.getElementById('tarjeta-entradas');
+            const tSalidas = document.getElementById('tarjeta-salidas');
+            const btnCompleto = document.getElementById('btn-completo');
+            const btnConteo = document.getElementById('btn-conteo');
+
+            if (vista === 'conteo') {
+                tEntradas.classList.add('oculto');
+                tSalidas.classList.add('oculto');
+                btnConteo.classList.add('active');
+                btnCompleto.classList.remove('active');
+            } else {
+                tEntradas.classList.remove('oculto');
+                tSalidas.classList.remove('oculto');
+                btnCompleto.classList.add('active');
+                btnConteo.classList.remove('active');
+            }
+        }
+
+        // Función para aplicar estilos visuales
+        function actualizarEstado(idElemento, valor, tipo) {
+            const el = document.getElementById(idElemento);
+            el.innerText = valor;
+            if (tipo === 'digital') {
+                el.className = valor === 1 ? 'encendido' : 'apagado';
+            }
+        }
+
+        // Escuchar cambios en la rama 'practica_monitor'
+        db.ref('practica_monitor').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if(data) {
+                // Actualizar Entradas
+                actualizarEstado('v-i00', data.entradas.I0_0, 'digital');
+                actualizarEstado('v-i01', data.entradas.I0_1, 'digital');
+                actualizarEstado('v-i02', data.entradas.I0_2, 'digital');
+                
+                // Actualizar Salidas
+                actualizarEstado('v-q00', data.salidas.Q0_0, 'digital');
+                actualizarEstado('v-q01', data.salidas.Q0_1, 'digital');
+                actualizarEstado('v-q02', data.salidas.Q0_2, 'digital');
+                
+                // Actualizar Contadores
+                actualizarEstado('v-m00', data.contadores.M0_0, 'contador');
+                actualizarEstado('v-m01', data.contadores.M0_1, 'contador');
+            }
+        });
+    </script>
+</body>
+</html>
